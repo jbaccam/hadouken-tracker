@@ -16,6 +16,10 @@
 # next.js
 /.next/
 /out/
+/.claude
+/02_Ryu
+/22_Ingame Effects
+/arcade-combat-hud
 
 # production
 /build

@@ -1,36 +1,41 @@
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;700&family=Permanent+Marker&display=swap');
 @import "tailwindcss";
 
-/* ─── Arcade Theme Colors ─── */
+/* ═══════════════════════════════════════════════
+   ARCADE COMBAT HUD — STREET FIGHTER THEME
+   ═══════════════════════════════════════════════ */
 @theme inline {
-  --color-background: #0a0a0a;
-  --color-foreground: #ededed;
-  --color-surface: #141414;
-  --color-surface-2: #1e1e1e;
-  --color-border: #2a2a2a;
+  /* Ryu Theme — White Gi, Red Headband, Black Night */
+  --color-background: #0A0A0F;
+  --color-foreground: #F0F0F0;
+  --color-surface: rgba(10, 10, 15, 0.85);
+  --color-surface-2: rgba(18, 18, 24, 0.9);
+  --color-border: rgba(211, 47, 47, 0.2);
 
-  /* Arcade accent palette */
-  --color-electric-blue: #00d4ff;
-  --color-hot-pink: #ff2d78;
-  --color-neon-yellow: #ffe600;
-  --color-fire-red: #ff4136;
-  --color-power-green: #00ff87;
-  --color-ultra-violet: #b026ff;
+  /* Arcade accent palette — Crimson primary */
+  --color-crimson: #D32F2F;
+  --color-ember: #FF6D00;
+  --color-power-green: #4CAF50;
+  --color-royal-blue: #2979FF;
+  --color-deep-violet: #9C27B0;
 
-  /* Macro-specific colors */
-  --color-protein: #00d4ff;
-  --color-carbs: #ffe600;
-  --color-fat: #ff2d78;
-  --color-calories: #ff4136;
+  /* Macro-specific colors (data, not theme) */
+  --color-protein: #4ade80;
+  --color-carbs: #3b82f6;
+  --color-fat: #ef4444;
+  --color-calories: #FF6D00;
 
-  /* Glow shadows */
-  --shadow-glow-blue: 0 0 20px rgba(0, 212, 255, 0.3);
-  --shadow-glow-pink: 0 0 20px rgba(255, 45, 120, 0.3);
-  --shadow-glow-yellow: 0 0 20px rgba(255, 230, 0, 0.3);
-  --shadow-glow-green: 0 0 20px rgba(0, 255, 135, 0.3);
-  --shadow-glow-red: 0 0 20px rgba(255, 65, 54, 0.3);
+  /* Glow shadows — red-focused */
+  --shadow-glow-crimson: 0 0 16px rgba(211, 47, 47, 0.35);
+  --shadow-glow-ember: 0 0 16px rgba(255, 109, 0, 0.35);
+  --shadow-glow-green: 0 0 16px rgba(76, 175, 80, 0.35);
+  --shadow-glow-blue: 0 0 16px rgba(66, 165, 245, 0.35);
+  --shadow-glow-protein: 0 0 16px rgba(74, 222, 128, 0.35);
+  --shadow-glow-carbs: 0 0 16px rgba(59, 130, 246, 0.35);
+  --shadow-glow-fat: 0 0 16px rgba(239, 83, 80, 0.35);
 
-  --font-display: "Orbitron", sans-serif;
-  --font-sans: "Inter", sans-serif;
+  --font-display: 'Permanent Marker', cursive;
+  --font-sans: 'Oswald', sans-serif;
 }
 
 /* ─── Mobile-Native Overrides ─── */
@@ -43,6 +48,7 @@ body {
   background: var(--color-background);
   color: var(--color-foreground);
   font-family: var(--font-sans);
+  font-weight: 500;
   touch-action: pan-y;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior-y: contain;
@@ -50,104 +56,381 @@ body {
   min-height: -webkit-fill-available;
 }
 
-/* Prevent text selection on non-input elements */
 *:not(input):not(textarea):not([contenteditable="true"]) {
   -webkit-user-select: none;
   user-select: none;
 }
 
-/* Allow text selection in inputs */
 input, textarea, [contenteditable="true"] {
   -webkit-user-select: auto;
   user-select: auto;
 }
 
-/* Safe area padding utilities */
-.safe-top {
-  padding-top: env(safe-area-inset-top, 0px);
+.safe-top { padding-top: env(safe-area-inset-top, 0px); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.safe-left { padding-left: env(safe-area-inset-left, 0px); }
+.safe-right { padding-right: env(safe-area-inset-right, 0px); }
+
+/* ═══════════════════════════════════════════════
+   SUZAKU CASTLE — CSS-ONLY STAGE BACKGROUND
+   ═══════════════════════════════════════════════ */
+.bg-sf-stage {
+  background-color: #0A0A0F;
+  background-image:
+    /* Subtle vignette for depth */
+    radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(0,0,0,0.5) 100%),
+    /* The texture */
+    url("/bg-texture.jpg");
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
 }
 
-.safe-bottom {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+/* ═══════════════════════════════════════════════
+   32-BIT TEXT & BAR EFFECTS
+   ═══════════════════════════════════════════════ */
+
+/* Thick 32-bit Sprite Outline for Text */
+.sf-text-stroke {
+  text-shadow:
+    -2px -2px 0 #000,
+     2px -2px 0 #000,
+    -2px  2px 0 #000,
+     2px  2px 0 #000,
+     0px  4px 0 #000,
+     0px  6px 10px rgba(0,0,0,0.8);
 }
 
-.safe-left {
-  padding-left: env(safe-area-inset-left, 0px);
-}
-
-.safe-right {
-  padding-right: env(safe-area-inset-right, 0px);
-}
-
-/* ─── Arcade Utilities ─── */
-
-/* Subtle CRT scanline overlay */
-.scanlines::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 9999;
-  background: repeating-linear-gradient(
-    0deg,
-    rgba(0, 0, 0, 0.03) 0px,
-    rgba(0, 0, 0, 0.03) 1px,
-    transparent 1px,
-    transparent 3px
-  );
-}
-
-/* Glow text effect */
-.text-glow-blue {
-  text-shadow: 0 0 10px rgba(0, 212, 255, 0.5), 0 0 20px rgba(0, 212, 255, 0.3);
-}
-
-.text-glow-pink {
-  text-shadow: 0 0 10px rgba(255, 45, 120, 0.5), 0 0 20px rgba(255, 45, 120, 0.3);
-}
-
-.text-glow-yellow {
-  text-shadow: 0 0 10px rgba(255, 230, 0, 0.5), 0 0 20px rgba(255, 230, 0, 0.3);
-}
-
-/* HP bar segmented effect */
-.hp-bar-segments {
-  background-image: repeating-linear-gradient(
-    90deg,
-    transparent,
-    transparent 8px,
-    rgba(0, 0, 0, 0.3) 8px,
-    rgba(0, 0, 0, 0.3) 10px
-  );
-}
-
-/* Arcade card border */
-.arcade-border {
-  border: 1px solid var(--color-border);
+/* Street Fighter Style Card */
+.sf-card {
+  background: linear-gradient(135deg, rgba(20,20,25,0.95) 0%, rgba(40,40,50,0.9) 100%);
+  border: 2px solid #000;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 2px 8px rgba(0, 0, 0, 0.3);
+    inset 0 0 20px rgba(0,0,0,0.8),
+    4px 4px 0px rgba(0,0,0,0.5);
+  position: relative;
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
 }
 
-/* Arcade button press effect */
+.sf-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 5px;
+  background: #dc2626;
+  box-shadow: 0 0 10px #dc2626;
+}
+
+.sf-card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 30%;
+  background: linear-gradient(to bottom, rgba(255,255,255,0.08), transparent);
+  pointer-events: none;
+}
+
+/* Solid dark panel — arcade cabinet feel */
+.solid-panel {
+  background: #111;
+  border: 2px solid #333;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.8);
+}
+
+/* Arcade-style input fields */
+.sf-input {
+  background: #0d0d12;
+  border: 2px solid #2a2a35;
+  color: #F0F0F0;
+  font-family: var(--font-sans);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.sf-input:focus {
+  outline: none;
+  border-color: rgba(211, 47, 47, 0.5);
+  box-shadow: 0 0 12px rgba(211, 47, 47, 0.15);
+}
+
+.sf-input::placeholder {
+  color: rgba(240, 240, 240, 0.15);
+}
+
+/* Arcade primary button */
+.sf-btn {
+  background: linear-gradient(135deg, rgba(20,20,25,0.95) 0%, rgba(40,40,50,0.9) 100%);
+  border: 2px solid #000;
+  box-shadow:
+    inset 0 0 20px rgba(0,0,0,0.8),
+    4px 4px 0px rgba(0,0,0,0.5);
+  position: relative;
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+  transition: filter 0.1s, transform 0.1s;
+}
+
+.sf-btn:active {
+  transform: translateY(2px);
+  filter: brightness(0.9);
+}
+
+/* 32-bit Health Bar Casing */
+.sf-bar-casing {
+  background: #222;
+  border: 4px solid #000;
+  box-shadow:
+    inset 0 2px 0 rgba(255,255,255,0.2),
+    0 6px 12px rgba(0,0,0,0.6);
+}
+
+/* Combo Text Gradient */
+.combo-text {
+  background: linear-gradient(to bottom, #ef4444, #D32F2F);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0px 4px 0px #000) drop-shadow(0px 0px 10px rgba(211,47,47,0.8));
+}
+
+/* ═══════════════════════════════════════════════
+   SANWA ARCADE BUTTON STYLES (3D)
+   ═══════════════════════════════════════════════ */
+.arcade-btn-3d {
+  border-radius: 50%;
+  border: 4px solid #111;
+  box-shadow:
+    inset 0 8px 10px rgba(255,255,255,0.5),
+    inset 0 -8px 10px rgba(0,0,0,0.3),
+    0 8px 0 #111,
+    0 12px 15px rgba(0,0,0,0.8);
+  transition: all 0.05s ease-in-out;
+  position: relative;
+  overflow: hidden;
+}
+
+.arcade-btn-3d:active {
+  transform: translateY(8px);
+  box-shadow:
+    inset 0 8px 10px rgba(255,255,255,0.5),
+    inset 0 -8px 10px rgba(0,0,0,0.3),
+    0 0 0 #111,
+    0 4px 5px rgba(0,0,0,0.8);
+}
+
+.arcade-btn-3d::after {
+  content: '';
+  position: absolute;
+  top: 10%;
+  left: 15%;
+  width: 40%;
+  height: 30%;
+  background: linear-gradient(to bottom, rgba(255,255,255,0.8), transparent);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* Flat arcade button press (for nav etc) */
 .arcade-btn {
-  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, filter 0.1s ease;
 }
 
 .arcade-btn:active {
   transform: scale(0.95) translateY(1px);
+  filter: brightness(0.9);
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 4px;
+/* ═══════════════════════════════════════════════
+   TEXT GLOW EFFECTS
+   ═══════════════════════════════════════════════ */
+.text-glow-crimson-soft {
+  text-shadow:
+    0 0 8px rgba(211, 47, 47, 0.5),
+    0 0 24px rgba(211, 47, 47, 0.15),
+    0 1px 2px rgba(0, 0, 0, 0.9);
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
+.text-glow-crimson {
+  text-shadow:
+    0 0 8px rgba(211, 47, 47, 0.6),
+    0 0 24px rgba(211, 47, 47, 0.2),
+    0 1px 2px rgba(0, 0, 0, 0.9);
 }
 
+.text-glow-ember {
+  text-shadow:
+    0 0 8px rgba(255, 109, 0, 0.6),
+    0 0 24px rgba(255, 109, 0, 0.2),
+    0 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+/* Clean white gi text for headers */
+.text-metallic {
+  background: linear-gradient(180deg, #FFFFFF 0%, #E0E0E0 40%, #A0A0A0 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
+}
+
+/* ═══════════════════════════════════════════════
+   ARCADE CARD / PANEL BORDERS — Chrome Trim
+   ═══════════════════════════════════════════════ */
+.arcade-border {
+  border: 1px solid var(--color-border);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(0, 0, 0, 0.2);
+}
+
+/* Chrome trim border — red */
+.chrome-border {
+  border: 2px solid transparent;
+  border-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(211, 47, 47, 0.3) 50%,
+    rgba(255, 255, 255, 0.05) 100%
+  ) 1;
+  box-shadow:
+    0 0 12px rgba(211, 47, 47, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* ═══════════════════════════════════════════════
+   SHIMMER / ENERGY ANIMATIONS
+   ═══════════════════════════════════════════════ */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+@keyframes energy-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.energy-pulse {
+  animation: energy-pulse 2s ease-in-out infinite;
+}
+
+@keyframes bar-glow {
+  0%, 100% { filter: brightness(1) drop-shadow(0 0 4px currentColor); }
+  50% { filter: brightness(1.15) drop-shadow(0 0 8px currentColor); }
+}
+
+.bar-glow {
+  animation: bar-glow 2s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════════
+   DECORATIVE DIVIDERS
+   ═══════════════════════════════════════════════ */
+.divider-ornament {
+  position: relative;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--color-border) 20%,
+    var(--color-crimson) 50%,
+    var(--color-border) 80%,
+    transparent 100%
+  );
+}
+
+.divider-ornament::after {
+  content: "◆";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 8px;
+  color: var(--color-crimson);
+  background: var(--color-background);
+  padding: 0 6px;
+}
+
+/* ═══════════════════════════════════════════════
+   RYU HERO STAGE
+   ═══════════════════════════════════════════════ */
+.arcade-hero {
+  margin: 0 0 24px;
+}
+
+.arcade-hero__stage {
+  position: relative;
+  height: 200px;
+  border-radius: 18px;
+  background: radial-gradient(circle at 20% 20%, rgba(211, 47, 47, 0.12), transparent 55%),
+    radial-gradient(circle at 80% 30%, rgba(211, 47, 47, 0.08), transparent 60%),
+    linear-gradient(160deg, rgba(21, 17, 17, 0.9), rgba(10, 8, 8, 0.95));
+  border: 1px solid rgba(211, 47, 47, 0.2);
+  overflow: hidden;
+  box-shadow: inset 0 -30px 40px rgba(0, 0, 0, 0.5), 0 12px 24px rgba(0, 0, 0, 0.45);
+}
+
+.arcade-hero__floor {
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  bottom: -30px;
+  height: 70px;
+  background: linear-gradient(90deg, rgba(211, 47, 47, 0.1), rgba(211, 47, 47, 0.06));
+  transform: skewX(-6deg);
+  filter: blur(0.3px);
+}
+
+.arcade-hero__spotlight {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.18), transparent 45%);
+  mix-blend-mode: screen;
+  opacity: 0.6;
+}
+
+.arcade-hero__ryu {
+  position: absolute;
+  left: 24px;
+  bottom: 10px;
+  width: 160px;
+  height: 160px;
+  display: grid;
+  place-items: center;
+  filter: drop-shadow(0 16px 18px rgba(0, 0, 0, 0.6));
+  animation: ryu-float 2.4s ease-in-out infinite;
+}
+
+.arcade-hero__ryu img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+@keyframes ryu-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+/* ═══════════════════════════════════════════════
+   SCROLLBAR
+   ═══════════════════════════════════════════════ */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: rgba(0,0,0,0.5); }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-border);
-  border-radius: 2px;
+  background: #D32F2F;
+  border: 2px solid #000;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #E53935;
 }
