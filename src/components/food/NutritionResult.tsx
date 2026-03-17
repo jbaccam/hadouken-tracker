@@ -2,13 +2,20 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Check, X, AlertTriangle, Shield } from "lucide-react";
+import { Check, X, AlertTriangle, Shield, Sparkles, Save } from "lucide-react";
 import type { AnalysisResult, NutritionItem } from "@/types/nutrition";
 import { cn } from "@/lib/utils/cn";
 
 interface NutritionResultProps {
   result: AnalysisResult;
   onConfirm: (items: NutritionItem[]) => void;
+  onRefine?: (instruction: string, items: NutritionItem[]) => void;
+  onSaveRecipe?: (payload: {
+    name: string;
+    items: NutritionItem[];
+    totalWeightGrams: number | null;
+    servings: number;
+  }) => void;
   onCancel: () => void;
   loading?: boolean;
 }
@@ -19,8 +26,19 @@ function confidenceBadge(confidence: number) {
   return { label: "LOW", color: "text-crimson", bg: "bg-crimson/10" };
 }
 
-export function NutritionResult({ result, onConfirm, onCancel, loading }: NutritionResultProps) {
+export function NutritionResult({
+  result,
+  onConfirm,
+  onRefine,
+  onSaveRecipe,
+  onCancel,
+  loading,
+}: NutritionResultProps) {
   const [editedItems, setEditedItems] = useState<NutritionItem[]>(result.items);
+  const [refineInstruction, setRefineInstruction] = useState("");
+  const [recipeName, setRecipeName] = useState("");
+  const [recipeWeight, setRecipeWeight] = useState("");
+  const [recipeServings, setRecipeServings] = useState("");
 
   if (result.rejected) {
     return (
@@ -54,6 +72,33 @@ export function NutritionResult({ result, onConfirm, onCancel, loading }: Nutrit
       updated[index] = { ...updated[index], [field]: value };
       return updated;
     });
+  }
+
+  function handleSaveRecipe() {
+    if (!onSaveRecipe) return;
+
+    const weight = recipeWeight.trim() ? Number(recipeWeight) : null;
+    const servings = Number(recipeServings);
+
+    if (
+      !recipeName.trim() ||
+      (weight !== null && (!Number.isFinite(weight) || weight <= 0)) ||
+      !Number.isFinite(servings) ||
+      servings <= 0
+    ) {
+      return;
+    }
+
+    onSaveRecipe({
+      name: recipeName.trim(),
+      items: editedItems,
+      totalWeightGrams: weight,
+      servings,
+    });
+
+    setRecipeName("");
+    setRecipeWeight("");
+    setRecipeServings("");
   }
 
   return (
@@ -153,6 +198,78 @@ export function NutritionResult({ result, onConfirm, onCancel, loading }: Nutrit
       {/* Notes */}
       {result.notes && (
         <p className="text-[11px] text-foreground/30 italic px-1">{result.notes}</p>
+      )}
+
+      {/* AI refine */}
+      {onRefine && (
+        <div className="sf-card p-4 space-y-2">
+          <p className="font-display text-[10px] tracking-widest text-foreground/50">
+            ADJUST WITH AI
+          </p>
+          <textarea
+            value={refineInstruction}
+            onChange={(e) => setRefineInstruction(e.target.value)}
+            rows={2}
+            placeholder="Example: change chicken to cooked thigh and set rice to 150g cooked"
+            className="w-full sf-input p-3 text-xs resize-none"
+          />
+          <button
+            onClick={() => onRefine(refineInstruction.trim(), editedItems)}
+            disabled={loading || !refineInstruction.trim()}
+            className="sf-btn w-full py-2.5 bg-carbs font-display text-[10px] tracking-widest text-black flex items-center justify-center gap-2 disabled:opacity-40"
+          >
+            <Sparkles size={13} />
+            RE-RUN WITH ADJUSTMENT
+          </button>
+        </div>
+      )}
+
+      {/* Save recipe */}
+      {onSaveRecipe && (
+        <div className="sf-card p-4 space-y-3">
+          <p className="font-display text-[10px] tracking-widest text-foreground/50">
+            SAVE AS RECIPE
+          </p>
+          <input
+            value={recipeName}
+            onChange={(e) => setRecipeName(e.target.value)}
+            placeholder="Recipe name (e.g. Chicken & Rice Bowl)"
+            className="w-full sf-input px-3 py-2 text-xs"
+          />
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              type="number"
+              min={1}
+              value={recipeWeight}
+              onChange={(e) => setRecipeWeight(e.target.value)}
+              placeholder="Total recipe grams (optional)"
+              className="w-full sf-input px-3 py-2 text-xs"
+            />
+            <input
+              type="number"
+              min={1}
+              step="0.5"
+              value={recipeServings}
+              onChange={(e) => setRecipeServings(e.target.value)}
+              placeholder="Servings made (required)"
+              className="w-full sf-input px-3 py-2 text-xs"
+            />
+          </div>
+          <button
+            onClick={handleSaveRecipe}
+            disabled={
+              loading ||
+              !recipeName.trim() ||
+              (recipeWeight.trim() !== "" && Number(recipeWeight) <= 0) ||
+              !recipeServings.trim() ||
+              Number(recipeServings) <= 0
+            }
+            className="sf-btn w-full py-2.5 bg-protein font-display text-[10px] tracking-widest text-black flex items-center justify-center gap-2 disabled:opacity-40"
+          >
+            <Save size={13} />
+            SAVE RECIPE
+          </button>
+        </div>
       )}
 
       {/* Action buttons */}

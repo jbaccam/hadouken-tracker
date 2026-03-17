@@ -1,16 +1,19 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useCallback, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils/cn";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Loader2, Mail, Lock, Eye, EyeOff, Ticket } from "lucide-react";
 import { toast } from "sonner";
 
 export function AuthForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
+  const inviteCode = searchParams.get("invite");
+  const hasInvite = Boolean(inviteCode);
 
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
@@ -19,8 +22,35 @@ export function AuthForm() {
   const [loading, setLoading] = useState(false);
   const [failures, setFailures] = useState(0);
   const [lockedUntil, setLockedUntil] = useState<number | null>(null);
+  const [inviteValid, setInviteValid] = useState<boolean | null>(null);
 
   const isLocked = lockedUntil !== null && Date.now() < lockedUntil;
+
+  useEffect(() => {
+    if (!hasInvite || !inviteCode) {
+      setInviteValid(null);
+      return;
+    }
+
+    let cancelled = false;
+    setMode("signup");
+    setInviteValid(null);
+
+    fetch(`/api/invites/validate?code=${encodeURIComponent(inviteCode)}`)
+      .then((res) => res.json())
+      .then((data: { valid?: boolean }) => {
+        if (!cancelled) {
+          setInviteValid(Boolean(data.valid));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setInviteValid(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasInvite, inviteCode]);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -48,11 +78,31 @@ export function AuthForm() {
             return;
           }
         } else {
+          if (hasInvite && inviteValid !== true) {
+            toast.error("Invite link is invalid or already used.");
+            return;
+          }
+
           const { error } = await supabase.auth.signUp({ email, password });
           if (error) {
             toast.error(error.message);
             return;
           }
+
+          if (hasInvite && inviteCode) {
+            const redeemRes = await fetch("/api/invites/redeem", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ code: inviteCode }),
+            });
+
+            if (!redeemRes.ok) {
+              const payload = (await redeemRes.json().catch(() => ({}))) as { error?: string };
+              toast.error(payload.error || "Failed to redeem invite link");
+              return;
+            }
+          }
+
           toast.success("Account created! Logging in...");
         }
 
@@ -64,7 +114,19 @@ export function AuthForm() {
         setLoading(false);
       }
     },
-    [email, password, mode, loading, isLocked, failures, supabase, router]
+    [
+      email,
+      password,
+      mode,
+      loading,
+      isLocked,
+      failures,
+      supabase,
+      router,
+      hasInvite,
+      inviteCode,
+      inviteValid,
+    ]
   );
 
   return (
@@ -75,24 +137,45 @@ export function AuthForm() {
       onSubmit={handleSubmit}
       className="w-full max-w-sm space-y-5 relative"
     >
-      {/* Mode toggle */}
-      <div className="flex overflow-hidden solid-panel">
-        {(["login", "signup"] as const).map((m) => (
-          <button
-            key={m}
-            type="button"
-            onClick={() => setMode(m)}
-            className={cn(
-              "flex-1 py-3 font-display text-xs tracking-widest uppercase transition-all duration-200",
-              mode === m
-                ? "bg-crimson/20 text-crimson text-glow-crimson-soft"
-                : "text-foreground/40 hover:text-foreground/60"
-            )}
-          >
-            {m === "login" ? "PLAYER LOGIN" : "NEW CHALLENGER"}
-          </button>
-        ))}
-      </div>
+      {hasInvite ? (
+        <div className="sf-card p-3 pl-4">
+          <div className="flex items-center gap-2">
+            <Ticket size={14} className="text-power-green" />
+            <span className="font-display text-[10px] tracking-widest text-power-green uppercase">
+              Friend Invite
+            </span>
+          </div>
+          <p className="text-[11px] text-foreground/45 mt-2">
+            Create your account to join with friend access.
+          </p>
+          {inviteValid === false && (
+            <p className="text-[11px] text-crimson mt-2">
+              This invite link is invalid or already used.
+            </p>
+          )}
+          {inviteValid === null && (
+            <p className="text-[11px] text-foreground/30 mt-2">Checking invite...</p>
+          )}
+        </div>
+      ) : (
+        <div className="flex overflow-hidden solid-panel">
+          {(["login", "signup"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setMode(m)}
+              className={cn(
+                "flex-1 py-3 font-display text-xs tracking-widest uppercase transition-all duration-200",
+                mode === m
+                  ? "bg-crimson/20 text-crimson text-glow-crimson-soft"
+                  : "text-foreground/40 hover:text-foreground/60"
+              )}
+            >
+              {m === "login" ? "PLAYER LOGIN" : "NEW CHALLENGER"}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Email */}
       <div className="space-y-2">
@@ -155,7 +238,7 @@ export function AuthForm() {
           exit={{ opacity: 0, scale: 0.95 }}
           transition={{ duration: 0.15 }}
           type="submit"
-          disabled={loading || isLocked}
+          disabled={loading || isLocked || (hasInvite && mode === "signup" && inviteValid !== true)}
           className={cn(
             "sf-btn w-full py-3.5 font-display text-sm tracking-widest uppercase relative overflow-hidden",
             "bg-crimson text-white sf-text-stroke",

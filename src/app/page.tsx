@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Zap, PlusCircle, Swords } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useDailySummary } from "@/lib/hooks/useDailySummary";
 import { useDeleteEntry } from "@/lib/hooks/useEntries";
 import { CalorieRing } from "@/components/ui/CalorieRing";
@@ -12,60 +12,188 @@ import { FoodEntryCard } from "@/components/food/FoodEntryCard";
 import { toast } from "sonner";
 
 export default function DashboardPage() {
-  const { totals, goals, percentages, entries, isLoading, profile } =
+  const { totals, goals, entries, isLoading, profile } =
     useDailySummary();
   const deleteEntry = useDeleteEntry();
 
-  // Ryu sprite animation
-  const [ryuFrames, setRyuFrames] = useState<string[]>([
-    "/sprites/02_Ryu/02593.png",
-  ]);
-  const [ryuFrameIndex, setRyuFrameIndex] = useState(0);
 
-  // Screen shake & combo state
+  // Screen shake & calorie combo state
   const [shake, setShake] = useState(false);
-  const [combo, setCombo] = useState(0);
+  const [comboDisplay, setComboDisplay] = useState(0); // currently displayed combo tick
+  const [comboMax, setComboMax] = useState(0); // target combo (calories / 100)
+  const [comboActive, setComboActive] = useState(false);
+  const [pulseTick, setPulseTick] = useState(0); // incremented per combo tick to pulse bars
+  const [comboMacroDisplay, setComboMacroDisplay] = useState<{
+    protein: number;
+    carbs: number;
+    fat: number;
+  } | null>(null);
   const comboTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const comboTickRef = useRef<NodeJS.Timeout | null>(null);
+  const comboMacroPlanRef = useRef<{
+    base: { protein: number; carbs: number; fat: number };
+    delta: { protein: number; carbs: number; fat: number };
+  } | null>(null);
+  const initializedRef = useRef(false);
   const prevEntryCount = useRef(0);
+  const prevTotalCalories = useRef(0);
+  const prevProtein = useRef(0);
+  const prevCarbs = useRef(0);
+  const prevFat = useRef(0);
 
-  // Load Ryu frames
-  useEffect(() => {
-    let isMounted = true;
-    fetch("/api/ryu-frames")
-      .then((res) => res.json())
-      .then((frames: string[]) => {
-        if (!isMounted) return;
-        setRyuFrames(frames);
-        setRyuFrameIndex(0);
-      })
-      .catch(() => {
-        if (!isMounted) return;
-        setRyuFrames(["/sprites/02_Ryu/02593.png"]);
-      });
-    return () => { isMounted = false; };
-  }, []);
+  const startComboAnimation = useCallback(
+    (
+      caloriesAdded: number,
+      macroBase?: { protein: number; carbs: number; fat: number },
+      macroDelta?: { protein: number; carbs: number; fat: number }
+    ) => {
+    const comboHits = Math.max(1, Math.floor(caloriesAdded / 100));
 
-  // Animate Ryu
-  useEffect(() => {
-    if (ryuFrames.length === 0) return;
-    const ryuInterval = setInterval(() => {
-      setRyuFrameIndex((prev) => (prev + 1) % ryuFrames.length);
-    }, 70);
-    return () => clearInterval(ryuInterval);
-  }, [ryuFrames.length]);
+    if (comboTickRef.current) clearInterval(comboTickRef.current);
+    if (comboTimeoutRef.current) clearTimeout(comboTimeoutRef.current);
 
-  // Trigger combo + shake when new entries arrive
-  useEffect(() => {
-    if (entries.length > prevEntryCount.current && prevEntryCount.current > 0) {
+      if (macroBase && macroDelta) {
+        comboMacroPlanRef.current = { base: macroBase, delta: macroDelta };
+        setComboMacroDisplay(macroBase);
+      } else {
+        comboMacroPlanRef.current = null;
+        setComboMacroDisplay(null);
+      }
+
+    setComboDisplay(0);
+    setComboMax(comboHits);
+    setComboActive(true);
+
+    let tick = 0;
+    comboTickRef.current = setInterval(() => {
+      tick++;
+      setComboDisplay(tick);
+      setPulseTick((p) => p + 1);
+
+      const macroPlan = comboMacroPlanRef.current;
+      if (macroPlan) {
+        const progress = tick / comboHits;
+        setComboMacroDisplay({
+          protein: macroPlan.base.protein + macroPlan.delta.protein * progress,
+          carbs: macroPlan.base.carbs + macroPlan.delta.carbs * progress,
+          fat: macroPlan.base.fat + macroPlan.delta.fat * progress,
+        });
+      }
+
       setShake(true);
-      setTimeout(() => setShake(false), 200);
+      setTimeout(() => setShake(false), 150);
 
-      setCombo((prev) => prev + 1);
-      if (comboTimeoutRef.current) clearTimeout(comboTimeoutRef.current);
-      comboTimeoutRef.current = setTimeout(() => setCombo(0), 3000);
+      if (tick >= comboHits) {
+        if (comboTickRef.current) clearInterval(comboTickRef.current);
+
+        comboTimeoutRef.current = setTimeout(() => {
+          setComboActive(false);
+          setComboDisplay(0);
+          setComboMax(0);
+          setComboMacroDisplay(null);
+          comboMacroPlanRef.current = null;
+        }, 2000);
+      }
+    }, 250);
+    },
+    []
+  );
+
+
+  // Trigger calorie-based combo when new entries arrive
+  useEffect(() => {
+    const currentCalories = totals.calories;
+    const currentProtein = totals.protein;
+    const currentCarbs = totals.carbs;
+    const currentFat = totals.fat;
+
+    if (!initializedRef.current) {
+      initializedRef.current = true;
+
+      const key = "macro-tracker:pending-combo";
+      const raw = window.sessionStorage.getItem(key);
+
+      if (raw) {
+        try {
+          const pending = JSON.parse(raw) as {
+            calories?: number;
+            protein?: number;
+            carbs?: number;
+            fat?: number;
+          };
+
+          const pendingCalories = Number(pending.calories) || 0;
+          const pendingProtein = Number(pending.protein) || 0;
+          const pendingCarbs = Number(pending.carbs) || 0;
+          const pendingFat = Number(pending.fat) || 0;
+
+          if (pendingCalories >= 100) {
+            startComboAnimation(
+              pendingCalories,
+              {
+                protein: Math.max(0, currentProtein - pendingProtein),
+                carbs: Math.max(0, currentCarbs - pendingCarbs),
+                fat: Math.max(0, currentFat - pendingFat),
+              },
+              {
+                protein: pendingProtein,
+                carbs: pendingCarbs,
+                fat: pendingFat,
+              }
+            );
+          }
+        } catch {
+          // ignore bad stored combo payload
+        }
+
+        window.sessionStorage.removeItem(key);
+      }
+
+      prevEntryCount.current = entries.length;
+      prevTotalCalories.current = currentCalories;
+      prevProtein.current = currentProtein;
+      prevCarbs.current = currentCarbs;
+      prevFat.current = currentFat;
+      return;
     }
+
+    const caloriesAdded = currentCalories - prevTotalCalories.current;
+    const proteinAdded = Math.max(0, currentProtein - prevProtein.current);
+    const carbsAdded = Math.max(0, currentCarbs - prevCarbs.current);
+    const fatAdded = Math.max(0, currentFat - prevFat.current);
+
+    if (
+      entries.length > prevEntryCount.current && caloriesAdded > 0
+    ) {
+      startComboAnimation(
+        caloriesAdded,
+        {
+          protein: prevProtein.current,
+          carbs: prevCarbs.current,
+          fat: prevFat.current,
+        },
+        {
+          protein: proteinAdded,
+          carbs: carbsAdded,
+          fat: fatAdded,
+        }
+      );
+    }
+
     prevEntryCount.current = entries.length;
-  }, [entries.length]);
+    prevTotalCalories.current = currentCalories;
+    prevProtein.current = currentProtein;
+    prevCarbs.current = currentCarbs;
+    prevFat.current = currentFat;
+  }, [entries.length, totals.calories, totals.protein, totals.carbs, totals.fat, startComboAnimation]);
+
+  const displayProtein = comboMacroDisplay?.protein ?? totals.protein;
+  const displayCarbs = comboMacroDisplay?.carbs ?? totals.carbs;
+  const displayFat = comboMacroDisplay?.fat ?? totals.fat;
+
+  const proteinPct = goals.protein > 0 ? (displayProtein / goals.protein) * 100 : 0;
+  const carbsPct = goals.carbs > 0 ? (displayCarbs / goals.carbs) * 100 : 0;
+  const fatPct = goals.fat > 0 ? (displayFat / goals.fat) * 100 : 0;
 
   function handleDelete(id: string) {
     deleteEntry.mutate(id, {
@@ -79,30 +207,10 @@ export default function DashboardPage() {
 
   return (
     <motion.div
-      className="min-h-screen text-white font-sans flex flex-col items-center justify-start pt-6 p-4 sm:p-8 overflow-hidden relative"
+      className="min-h-screen text-white font-sans flex flex-col items-center justify-start pt-6 p-4 sm:p-8 relative"
       animate={shake ? { x: [-10, 10, -10, 10, 0], y: [-5, 5, -5, 5, 0] } : {}}
       transition={{ duration: 0.2 }}
     >
-      {/* Combo Counter Overlay */}
-      <AnimatePresence>
-        {combo > 1 && (
-          <motion.div
-            className="absolute left-8 top-1/3 z-50 pointer-events-none flex flex-col items-start"
-            initial={{ x: -100, opacity: 0, scale: 0.5 }}
-            animate={{ x: 0, opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.5, filter: "blur(10px)" }}
-            key={combo}
-          >
-            <span className="font-display text-6xl md:text-8xl italic combo-text leading-none">
-              {combo}
-            </span>
-            <span className="font-display text-2xl md:text-4xl italic text-red-500 sf-text-stroke -mt-2">
-              HITS!
-            </span>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       <div className="w-full max-w-2xl z-10 relative">
         {/* ═══ HEADER — ROUND COUNTER STYLE ═══ */}
         <motion.div
@@ -136,30 +244,58 @@ export default function DashboardPage() {
           </div>
         </motion.div>
 
-        {/* ═══ RYU HERO STAGE ═══ */}
-        <div className="arcade-hero">
-          <div className="arcade-hero__stage">
-            <div className="arcade-hero__floor" />
-            <div className="arcade-hero__spotlight" />
-            <div className="arcade-hero__ryu">
-              {ryuFrames.length > 0 ? (
-                <img
-                  key={ryuFrames[ryuFrameIndex]}
-                  src={ryuFrames[ryuFrameIndex]}
-                  alt="Ryu animation"
-                />
-              ) : null}
-            </div>
-          </div>
-        </div>
-
         {/* ═══ CALORIE RING (32-bit Timer) ═══ */}
         <motion.div
-          className="flex justify-center mb-14 mt-4"
+          className="flex justify-center mb-14 mt-4 relative"
           initial={{ y: -50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.5, type: "spring", bounce: 0.4 }}
         >
+          <AnimatePresence>
+            {comboActive && comboDisplay > 0 && (
+              <motion.div
+                className="absolute right-[calc(50%+84px)] top-1/2 -translate-y-1/2 z-50 pointer-events-none flex flex-col items-end"
+                initial={{ x: -100, opacity: 0, scale: 0.5 }}
+                animate={{ x: 0, opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 1.5, filter: "blur(10px)" }}
+                key="combo-container"
+              >
+                <motion.span
+                  className="font-display text-5xl sm:text-6xl md:text-7xl italic combo-text leading-none"
+                  key={comboDisplay}
+                  initial={{ scale: 2, opacity: 0, y: 20 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                >
+                  {comboDisplay}x
+                </motion.span>
+
+                <motion.span
+                  className="font-display text-lg sm:text-xl md:text-2xl italic text-red-500 sf-text-stroke -mt-1"
+                  key={`label-${comboDisplay}`}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.05 }}
+                >
+                  {comboDisplay >= comboMax ? "COMBO!" : "HIT!"}
+                </motion.span>
+
+                <AnimatePresence>
+                  {comboDisplay >= comboMax && (
+                    <motion.span
+                      className="font-display text-sm sm:text-base md:text-lg tracking-wider text-amber-400 sf-text-stroke mt-1"
+                      initial={{ opacity: 0, y: 10, scale: 0.5 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{ delay: 0.15, type: "spring", stiffness: 300 }}
+                    >
+                      +{comboMax * 100} CAL
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <CalorieRing
             current={totals.calories}
             goal={goals.calories}
@@ -176,27 +312,30 @@ export default function DashboardPage() {
           <div className="space-y-10">
             <MacroBar
               label="Protein"
-              current={totals.protein}
+              current={displayProtein}
               goal={goals.protein}
-              percentage={percentages.protein}
+              percentage={proteinPct}
               color="protein"
               playerNum={1}
+              pulseSignal={pulseTick}
             />
             <MacroBar
               label="Carbs"
-              current={totals.carbs}
+              current={displayCarbs}
               goal={goals.carbs}
-              percentage={percentages.carbs}
+              percentage={carbsPct}
               color="carbs"
               playerNum={2}
+              pulseSignal={pulseTick}
             />
             <MacroBar
               label="Fat"
-              current={totals.fat}
+              current={displayFat}
               goal={goals.fat}
-              percentage={percentages.fat}
+              percentage={fatPct}
               color="fat"
               playerNum={3}
+              pulseSignal={pulseTick}
             />
           </div>
         </motion.div>

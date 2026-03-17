@@ -1,4 +1,5 @@
 import { getOpenAI } from "./client";
+import { parseAnalysisResult } from "./parse-analysis";
 import { IMAGE_PROMPT } from "./prompts";
 import type { AnalysisResult } from "@/types/nutrition";
 
@@ -31,5 +32,5 @@ export async function analyzeImage(base64Image: string): Promise<AnalysisResult>
     throw new Error("No response from AI");
   }
 
-  return JSON.parse(content) as AnalysisResult;
+  return parseAnalysisResult(content);
 }

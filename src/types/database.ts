@@ -1,3 +1,5 @@
+import type { NutritionItem } from "@/types/nutrition";
+
 export type UserRole = "admin" | "friend" | "free";
 
 export interface Profile {
@@ -32,5 +34,21 @@ export interface FoodEntry {
   created_at: string;
 }
 
+export interface SavedRecipe {
+  id: string;
+  user_id: string;
+  name: string;
+  items: NutritionItem[];
+  total_weight_grams: number | null;
+  servings: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export type InsertFoodEntry = Omit<FoodEntry, "id" | "created_at" | "user_id">;
 export type UpdateFoodEntry = Partial<InsertFoodEntry> & { id: string };
+export type InsertSavedRecipe = Omit<
+  SavedRecipe,
+  "id" | "created_at" | "updated_at" | "user_id"
+>;
+export type UpdateSavedRecipe = Partial<InsertSavedRecipe> & { id: string };

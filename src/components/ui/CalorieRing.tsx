@@ -1,7 +1,6 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
 
 interface CalorieRingProps {
   current: number;
@@ -9,46 +8,45 @@ interface CalorieRingProps {
 }
 
 export function CalorieRing({ current, goal }: CalorieRingProps) {
-  const [flash, setFlash] = useState(false);
+  const display = Math.round(current);
+  const digitCount = Math.abs(display).toString().length;
+  const flashKey = current > 0 ? display : 0;
 
-  useEffect(() => {
-    if (current > 0) {
-      setFlash(true);
-      const timer = setTimeout(() => setFlash(false), 300);
-      return () => clearTimeout(timer);
-    }
-  }, [current]);
+  const valueTextClass =
+    digitCount >= 6
+      ? "text-3xl sm:text-4xl"
+      : digitCount >= 5
+        ? "text-4xl sm:text-5xl"
+        : "text-5xl sm:text-6xl";
 
   return (
     <motion.div
+      key={`ring-${flashKey}`}
       className="flex flex-col items-center justify-center relative"
-      animate={flash ? { scale: [1, 1.1, 1] } : {}}
+      animate={current > 0 ? { scale: [1, 1.1, 1] } : {}}
       transition={{ duration: 0.2 }}
     >
-      {/* "TIME" / Round Indicator */}
       <div className="absolute -top-6 z-20">
         <span className="font-display text-2xl text-white sf-text-stroke tracking-widest">
           CALORIES
         </span>
       </div>
 
-      {/* 32-bit Timer Crest/Shield */}
-      <div className="relative w-36 h-36 bg-gradient-to-b from-zinc-700 to-zinc-900 rounded-full border-[6px] border-black shadow-[0_10px_20px_rgba(0,0,0,0.8)] flex flex-col items-center justify-center z-10 overflow-hidden">
-        {/* Inner Red Ring */}
+      <div className="relative w-36 h-36 bg-gradient-to-b from-zinc-700 to-zinc-900 rounded-full border-[6px] border-black shadow-[0_10px_20px_rgba(0,0,0,0.8)] flex flex-col items-center justify-center z-10 overflow-visible">
         <div className="absolute inset-1 rounded-full border-4 border-red-600/50 pointer-events-none" />
 
-        {/* Big 32-bit Numbers */}
         <motion.div
-          className="font-display text-6xl text-white sf-text-stroke leading-none mt-2 relative z-10"
-          animate={flash ? { color: ["#fff", "#D32F2F", "#fff"] } : {}}
+          key={`value-${flashKey}`}
+          className={`font-display ${valueTextClass} text-white sf-text-stroke leading-none mt-2 relative z-10 whitespace-nowrap`}
+          animate={current > 0 ? { color: ["#fff", "#D32F2F", "#fff"] } : {}}
           transition={{ duration: 0.3 }}
         >
-          {current}
+          {display}
         </motion.div>
 
-        {/* White Flash Overlay */}
-        {flash && (
+        {current > 0 && (
           <motion.div
+            key={`overlay-${flashKey}`}
             className="absolute inset-0 bg-white z-20 rounded-full"
             initial={{ opacity: 0.8 }}
             animate={{ opacity: 0 }}
@@ -57,7 +55,6 @@ export function CalorieRing({ current, goal }: CalorieRingProps) {
         )}
       </div>
 
-      {/* Goal underneath timer */}
       <div className="absolute -bottom-6 z-20 bg-black/80 px-4 py-1 border-2 border-zinc-700 skew-x-[-10deg]">
         <span className="font-sans text-2xl text-red-500 sf-text-stroke skew-x-[10deg] block">
           MAX {goal}

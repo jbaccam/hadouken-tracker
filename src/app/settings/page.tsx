@@ -8,12 +8,11 @@ import {
   LogOut,
   Loader2,
   Users,
+  Copy,
   Shield,
   ShieldCheck,
   ShieldAlert,
   Target,
-  Sun,
-  Moon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
@@ -29,6 +28,13 @@ interface AdminUser {
   created_at: string;
 }
 
+interface AdminInvite {
+  id: string;
+  code: string;
+  created_at: string;
+  used_at: string | null;
+}
+
 export default function SettingsPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -42,18 +48,13 @@ export default function SettingsPage() {
     fat_goal: 65,
   });
   const [goalsDirty, setGoalsDirty] = useState(false);
-  const [isDark, setIsDark] = useState(true);
-
   // Admin state
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [togglingUser, setTogglingUser] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Read theme from html class on mount
-    const isLight = document.documentElement.classList.contains("light");
-    setIsDark(!isLight);
-  }, []);
+  const [invites, setInvites] = useState<AdminInvite[]>([]);
+  const [loadingInvites, setLoadingInvites] = useState(false);
+  const [creatingInvite, setCreatingInvite] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -69,23 +70,9 @@ export default function SettingsPage() {
   useEffect(() => {
     if (profile?.role === "admin") {
       loadUsers();
+      loadInvites();
     }
   }, [profile?.role]);
-
-  function toggleTheme() {
-    const html = document.documentElement;
-    if (isDark) {
-      html.classList.remove("dark");
-      html.classList.add("light");
-      setIsDark(false);
-      localStorage.setItem("theme", "light");
-    } else {
-      html.classList.remove("light");
-      html.classList.add("dark");
-      setIsDark(true);
-      localStorage.setItem("theme", "dark");
-    }
-  }
 
   async function loadUsers() {
     setLoadingUsers(true);
@@ -97,6 +84,63 @@ export default function SettingsPage() {
     } finally {
       setLoadingUsers(false);
     }
+  }
+
+  async function loadInvites() {
+    setLoadingInvites(true);
+    try {
+      const res = await fetch("/api/admin/invites");
+      if (res.ok) {
+        setInvites(await res.json());
+      }
+    } finally {
+      setLoadingInvites(false);
+    }
+  }
+
+  async function createInvite() {
+    setCreatingInvite(true);
+    try {
+      const res = await fetch("/api/admin/invites", { method: "POST" });
+      const payload = (await res.json().catch(() => ({}))) as {
+        id?: string;
+        code?: string;
+        created_at?: string;
+        used_at?: string | null;
+        invite_url?: string;
+        error?: string;
+      };
+
+      if (!res.ok) {
+        toast.error(payload.error || "Failed to create invite link");
+        return;
+      }
+
+      setInvites((prev) => [
+        {
+          id: payload.id || crypto.randomUUID(),
+          code: payload.code || "",
+          created_at: payload.created_at || new Date().toISOString(),
+          used_at: payload.used_at || null,
+        },
+        ...prev,
+      ]);
+
+      if (payload.invite_url) {
+        await navigator.clipboard.writeText(payload.invite_url);
+        toast.success("Invite link copied to clipboard");
+      } else {
+        toast.success("Invite link created");
+      }
+    } finally {
+      setCreatingInvite(false);
+    }
+  }
+
+  async function copyInvite(code: string) {
+    const url = `${window.location.origin}/auth?invite=${code}`;
+    await navigator.clipboard.writeText(url);
+    toast.success("Invite link copied");
   }
 
   function handleGoalChange(key: keyof typeof goals, value: string) {
@@ -164,38 +208,11 @@ export default function SettingsPage() {
         CONFIG
       </motion.h1>
 
-      {/* Theme toggle */}
-      <motion.section
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.02 }}
-        className="sf-card p-4 pl-5 mb-4"
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {isDark ? (
-              <Moon size={14} className="text-foreground/50" />
-            ) : (
-              <Sun size={14} className="text-ember" />
-            )}
-            <span className="font-display text-[11px] tracking-widest text-foreground/50 uppercase sf-text-stroke">
-              Theme
-            </span>
-          </div>
-          <button
-            onClick={toggleTheme}
-            className="sf-btn px-4 py-2 font-display text-[10px] tracking-widest text-foreground/60 hover:text-foreground"
-          >
-            {isDark ? "LIGHT MODE" : "DARK MODE"}
-          </button>
-        </div>
-      </motion.section>
-
       {/* Goals section */}
       <motion.section
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.05 }}
+        transition={{ delay: 0.02 }}
         className="sf-card p-4 pl-5 mb-4"
       >
         <div className="flex items-center gap-2 mb-4">
@@ -283,6 +300,55 @@ export default function SettingsPage() {
             <h2 className="font-display text-[11px] tracking-widest text-deep-violet uppercase">
               Admin — User Management
             </h2>
+          </div>
+
+          <div className="mb-4 p-3 border border-[#2a2a35] bg-[#0d0d12]">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="font-display text-[10px] tracking-widest text-power-green uppercase">
+                  Invite Link
+                </p>
+                <p className="text-[11px] text-foreground/35">One signup per link.</p>
+              </div>
+              <button
+                onClick={createInvite}
+                disabled={creatingInvite}
+                className="sf-btn px-3 py-2 text-[10px] font-display tracking-widest bg-power-green/20 text-power-green disabled:opacity-40"
+              >
+                {creatingInvite ? <Loader2 size={12} className="animate-spin" /> : "NEW LINK"}
+              </button>
+            </div>
+
+            <div className="mt-3 space-y-2">
+              {loadingInvites ? (
+                <div className="flex justify-center py-3">
+                  <Loader2 size={16} className="animate-spin text-foreground/30" />
+                </div>
+              ) : invites.length === 0 ? (
+                <p className="text-[11px] text-foreground/30">No invite links yet.</p>
+              ) : (
+                invites.slice(0, 6).map((invite) => (
+                  <div
+                    key={invite.id}
+                    className="flex items-center justify-between gap-2 px-2 py-2 border border-[#24242d]"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-[11px] text-foreground/55 truncate">/auth?invite={invite.code}</p>
+                      <p className="text-[10px] text-foreground/30">
+                        {invite.used_at ? "Used" : "Unused"} • {new Date(invite.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => copyInvite(invite.code)}
+                      className="sf-btn px-2 py-1.5 text-[10px] text-foreground/60 hover:text-foreground flex items-center gap-1"
+                    >
+                      <Copy size={12} />
+                      COPY
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
 
           {loadingUsers ? (
